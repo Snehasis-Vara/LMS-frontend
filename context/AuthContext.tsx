@@ -22,19 +22,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    const userData = localStorage.getItem('user');
-    if (token && userData) {
-      setUser(JSON.parse(userData));
-    }
-    setLoading(false);
+    const initAuth = async () => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          // Always fetch fresh user data from API
+          const response = await api.get<User>('/users/profile');
+          setUser(response.data);
+          localStorage.setItem('user', JSON.stringify(response.data));
+        } catch (error) {
+          console.error('Failed to fetch user:', error);
+          // Token invalid, clear auth
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+        }
+      }
+      setLoading(false);
+    };
+
+    initAuth();
   }, []);
 
   const refreshUser = async () => {
     try {
       const response = await api.get<User>('/users/profile');
-      localStorage.setItem('user', JSON.stringify(response.data));
-      setUser(response.data);
+      const updatedUser = response.data;
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      setUser(updatedUser);
     } catch (error) {
       console.error('Failed to refresh user:', error);
     }

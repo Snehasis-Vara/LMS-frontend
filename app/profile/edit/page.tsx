@@ -58,15 +58,21 @@ export default function EditProfilePage() {
     setLoading(true);
 
     try {
-      const data = new FormData();
-      data.append('name', formData.name);
-      data.append('email', formData.email);
-      if (formData.phone) data.append('phone', formData.phone);
-      if (photoFile) data.append('profileImage', photoFile);
-
-      await api.patch('/users/profile', data, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+      // Update profile data
+      await api.patch('/users/profile', {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone || null,
       });
+
+      // Upload photo if selected
+      if (photoFile) {
+        const photoFormData = new FormData();
+        photoFormData.append('photo', photoFile);
+        await api.post('/users/profile/photo', photoFormData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+      }
 
       await refreshUser();
       toast.success('Profile updated successfully!');

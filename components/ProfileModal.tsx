@@ -112,7 +112,7 @@ export default function ProfileModal({ open, onClose }: ProfileModalProps) {
     }
 
     const phoneRegex = /^\+?[1-9]\d{9,14}$/;
-    if (formData.phone && !phoneRegex.test(formData.phone)) {
+    if (formData.phone && formData.phone.trim() && !phoneRegex.test(formData.phone.replace(/\s/g, ''))) {
       toast.error('Phone must be 10-15 digits');
       return;
     }
