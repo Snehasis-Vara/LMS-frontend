@@ -7,7 +7,12 @@ import { Toaster } from 'sonner';
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isAuthPage = pathname === '/login' || pathname === '/register' || pathname === '/';
+  const isAuthPage = pathname === '/login' 
+    || pathname === '/register' 
+    || pathname === '/'
+    || pathname === '/forgot-password'
+    || pathname === '/verify-otp'
+    || pathname === '/reset-password';
 
   if (isAuthPage) {
     return (
