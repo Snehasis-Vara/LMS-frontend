@@ -18,10 +18,11 @@ export default function BooksPage() {
   const [error, setError] = useState('');
   const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm();
 
-  const fetchBooks = async () => {
+  const fetchBooks = async (searchTerm?: string) => {
     try {
       setLoading(true);
-      const response = await api.get('/books');
+      const params = searchTerm ? `?search=${encodeURIComponent(searchTerm)}` : '';
+      const response = await api.get(`/books${params}`);
       setBooks(response.data);
       setError('');
     } catch (err) {
@@ -32,8 +33,8 @@ export default function BooksPage() {
   };
 
   useEffect(() => {
-    fetchBooks();
-  }, []);
+    fetchBooks(search);
+  }, [search]);
 
   const onSubmit = async (data: any) => {
     try {
@@ -49,7 +50,7 @@ export default function BooksPage() {
           publishedYear: parseInt(data.publishedYear)
         });
       }
-      await fetchBooks();
+      await fetchBooks(search);
       setShowModal(false);
       reset();
       setEditingBook(null);
@@ -74,21 +75,15 @@ export default function BooksPage() {
   const handleDelete = async (id: string, title: string) => {
     try {
       await api.delete(`/books/${id}`);
-      await fetchBooks();
+      await fetchBooks(search);
       alert('Book deleted successfully!');
     } catch (error) {
       alert('Failed to delete book');
     }
   };
 
-  const filteredBooks = books.filter(b =>
-    b.title.toLowerCase().includes(search.toLowerCase()) ||
-    b.author.toLowerCase().includes(search.toLowerCase()) ||
-    b.isbn.includes(search)
-  );
-
   // Group books by title and count
-  const bookGroups = filteredBooks.reduce((acc, book) => {
+  const bookGroups = books.reduce((acc, book) => {
     const key = book.title.toLowerCase();
     if (!acc[key]) {
       acc[key] = { book, count: 0 };
