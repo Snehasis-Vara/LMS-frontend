@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { useAuth } from '@/context/AuthContext';
 import api from '@/lib/api';
@@ -16,14 +16,27 @@ export default function BooksPage() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [hasOpenedModalForNewBook, setHasOpenedModalForNewBook] = useState(false);
+  const [pagination, setPagination] = useState({ skip: 0, limit: 3, total: 0, hasMore: true });
   const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm();
 
-  const fetchBooks = async (searchTerm?: string) => {
+  const fetchBooks = async (searchTerm: string = '', skipValue: number = 0) => {
     try {
       setLoading(true);
-      const params = searchTerm ? `?search=${encodeURIComponent(searchTerm)}` : '';
-      const response = await api.get(`/books${params}`);
-      setBooks(response.data);
+      const params = new URLSearchParams({
+        ...(searchTerm && { search: searchTerm }),
+        skip: skipValue.toString(),
+        limit: '3'
+      }).toString();
+      
+      const response = await api.get(`/books?${params}`);
+      setBooks(response.data.data || []);
+      setPagination({
+        skip: response.data.skip || 0,
+        limit: 3,
+        total: response.data.total || 0,
+        hasMore: response.data.hasMore || false
+      });
       setError('');
     } catch (err) {
       setError('Failed to load books');
@@ -33,7 +46,7 @@ export default function BooksPage() {
   };
 
   useEffect(() => {
-    fetchBooks(search);
+    fetchBooks(search, 0);
   }, [search]);
 
   const onSubmit = async (data: any) => {
@@ -50,10 +63,11 @@ export default function BooksPage() {
           publishedYear: parseInt(data.publishedYear)
         });
       }
-      await fetchBooks(search);
+      await fetchBooks(search, pagination.skip);
       setShowModal(false);
       reset();
       setEditingBook(null);
+      setHasOpenedModalForNewBook(false);
       alert(editingBook ? 'Book updated successfully!' : 'Book added successfully!');
     } catch (error: any) {
       alert(error.response?.data?.message || 'Failed to save book');
@@ -75,7 +89,7 @@ export default function BooksPage() {
   const handleDelete = async (id: string, title: string) => {
     try {
       await api.delete(`/books/${id}`);
-      await fetchBooks(search);
+      await fetchBooks(search, pagination.skip);
       alert('Book deleted successfully!');
     } catch (error) {
       alert('Failed to delete book');
@@ -94,13 +108,27 @@ export default function BooksPage() {
 
   const uniqueBooks = Object.values(bookGroups);
 
+  const openIssueModal = () => {
+    setShowModal(true);
+    setEditingBook(null);
+    reset();
+    setHasOpenedModalForNewBook(false); // Reset for new book
+  };
+
+  const openAddNewBookModal = () => {
+    setShowModal(true);
+    setEditingBook(null);
+    reset();
+    setHasOpenedModalForNewBook(false); // Reset for new book
+  };
+
   return (
     <ProtectedRoute>
       <div>
         <div className="flex justify-between items-center mb-6">
           {user?.role === 'ADMIN' && (
             <button
-              onClick={() => { setShowModal(true); setEditingBook(null); reset(); }}
+              onClick={openAddNewBookModal}
               className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 shadow-md transition"
             >
               + Add New Book
@@ -121,7 +149,17 @@ export default function BooksPage() {
           onChange={(e) => setSearch(e.target.value)}
           className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg mb-6 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 placeholder-gray-600"
         />
-
+        
+        {/* Scroll loading indicator */}
+        {loading && books.length > 0 && (
+          <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-white px-4 py-2 rounded-lg shadow-lg z-50">
+            <div className="flex items-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
+              <span className="ml-2 text-gray-600">Loading...</span>
+            </div>
+          </div>
+        )}
+        
         {loading && books.length === 0 ? (
           <div className="text-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
@@ -183,7 +221,7 @@ export default function BooksPage() {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-lg p-6 w-full max-w-md">
               <h2 className="text-2xl font-bold mb-4 text-indigo-900">
-                {editingBook ? 'Edit Book' : 'Add New Book'}
+                {!hasOpenedModalForNewBook ? 'Add New Book' : 'Edit Book'}
               </h2>
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                 <div>
@@ -259,6 +297,31 @@ export default function BooksPage() {
                 </div>
               </form>
             </div>
+          </div>
+        )}
+        
+        {/* Pagination Controls */}
+        {pagination.total > 3 && (
+          <div className="flex justify-center items-center gap-4 mt-8 bg-white p-4 rounded-lg shadow">
+            <button
+              onClick={() => fetchBooks(search, pagination.skip - 3)}
+              disabled={pagination.skip === 0}
+              className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition font-medium"
+            >
+              ← Previous
+            </button>
+            
+            <span className="text-gray-700 font-medium">
+              Showing {pagination.skip + 1}-{Math.min(pagination.skip + 3, pagination.total)} of {pagination.total}
+            </span>
+            
+            <button
+              onClick={() => fetchBooks(search, pagination.skip + 3)}
+              disabled={!pagination.hasMore}
+              className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition font-medium"
+            >
+              Next →
+            </button>
           </div>
         )}
       </div>

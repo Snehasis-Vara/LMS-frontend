@@ -24,17 +24,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const initAuth = async () => {
       const token = localStorage.getItem('token');
+      console.log('AuthContext: Token from localStorage:', token);
       if (token) {
         try {
           // Always fetch fresh user data from API
           const response = await api.get<User>('/users/profile');
+          console.log('AuthContext: User profile response:', response.data);
           setUser(response.data);
           localStorage.setItem('user', JSON.stringify(response.data));
-        } catch (error) {
+        } catch (error: any) {
           console.error('Failed to fetch user:', error);
-          // Token invalid, clear auth
+          // Token invalid, clear auth and set user to null
           localStorage.removeItem('token');
           localStorage.removeItem('user');
+          setUser(null); // Clear user state
         }
       }
       setLoading(false);

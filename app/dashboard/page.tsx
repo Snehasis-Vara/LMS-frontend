@@ -13,27 +13,31 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const [books, inventory, transactions, users] = await Promise.all([
+        const [booksRes, inventoryRes, transactionsRes, usersRes] = await Promise.all([
           api.get('/books'),
-          api.get('/inventory'),
+          user?.role === 'ADMIN' || user?.role === 'LIBRARIAN' ? api.get('/inventory') : Promise.resolve({ data: [] }),
           api.get('/transactions'),
           user?.role === 'ADMIN' ? api.get('/users') : Promise.resolve({ data: [] }),
         ]);
         
-        // Count unique book titles
-        const uniqueTitles = new Set(books.data.map((b: any) => b.title.toLowerCase()));
+        const booksData = booksRes.data.data || booksRes.data;
+        const inventoryData = inventoryRes.data;
+        const transactionsData = transactionsRes.data;
+        const usersData = usersRes.data;
         
         setStats({
-          books: uniqueTitles.size,
-          inventory: inventory.data.length,
-          transactions: transactions.data.length,
-          users: users.data.length,
+          books: booksData.length,
+          inventory: inventoryData.length,
+          transactions: transactionsData.length,
+          users: usersData.length,
         });
-      } catch (error) {
-        console.error('Failed to fetch stats', error);
+      } catch (error: any) {
+        console.error('Failed to fetch stats:', error);
       }
     };
-    fetchStats();
+    if (user) {
+      fetchStats();
+    }
   }, [user]);
 
   return (
@@ -45,13 +49,15 @@ export default function DashboardPage() {
             <p className="text-3xl font-bold text-gray-800 mt-2">{stats.books}</p>
           </div>
           
-          <div className="bg-white p-6 rounded-lg shadow border-l-4 border-green-500">
-            <h3 className="text-gray-600 text-sm font-medium">Inventory Copies</h3>
-            <p className="text-3xl font-bold text-gray-800 mt-2">{stats.inventory}</p>
-          </div>
+          {(user?.role === 'ADMIN' || user?.role === 'LIBRARIAN') && (
+            <div className="bg-white p-6 rounded-lg shadow border-l-4 border-green-500">
+              <h3 className="text-gray-600 text-sm font-medium">Inventory Copies</h3>
+              <p className="text-3xl font-bold text-gray-800 mt-2">{stats.inventory}</p>
+            </div>
+          )}
           
           <div className="bg-white p-6 rounded-lg shadow border-l-4 border-yellow-500">
-            <h3 className="text-gray-600 text-sm font-medium">Transactions</h3>
+            <h3 className="text-gray-600 text-sm font-medium">{user?.role === 'STUDENT' ? 'My Transactions' : 'Transactions'}</h3>
             <p className="text-3xl font-bold text-gray-800 mt-2">{stats.transactions}</p>
           </div>
           

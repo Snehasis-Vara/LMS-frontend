@@ -27,15 +27,16 @@ export default function TransactionsPage() {
       ]);
       
       setTransactions(trans.data);
-      setBooks(bks.data.filter((b: Book) => b.availableCopies > 0));
+      setBooks((bks.data.data || bks.data).filter((b: Book) => b.availableCopies > 0));
       
       // Only fetch users for admin/librarian
       if (user?.role === 'ADMIN' || user?.role === 'LIBRARIAN') {
         const usr = await api.get('/users');
         setUsers(usr.data);
       }
-    } catch (error) {
-      alert('Failed to load data');
+    } catch (error: any) {
+      console.error('Failed to load data:', error);
+      alert(error.response?.data?.message || 'Failed to load data');
     } finally {
       setLoading(false);
     }
@@ -125,16 +126,51 @@ export default function TransactionsPage() {
     setShowIssueModal(true);
   };
 
+  // Check if student has any active transactions (ISSUED or OVERDUE)
+  const hasActiveTransactions = user?.role === 'STUDENT' && 
+    transactions.some(trans => trans.status === 'ISSUED' || trans.status === 'OVERDUE');
+
+  // Check if student has any transactions at all
+  const hasAnyTransactions = user?.role === 'STUDENT' && transactions.length > 0;
+
+  // Determine button text and visibility
+  const getIssueButton = () => {
+    if (user?.role === 'ADMIN' || user?.role === 'LIBRARIAN') {
+      return { show: true, text: '+ Issue Book' };
+    }
+    
+    if (user?.role === 'STUDENT') {
+      // First-time student (no transactions)
+      if (!hasAnyTransactions) {
+        return { show: true, text: 'Issue Your First Book' };
+      }
+      // Student with only returned books (no active transactions)
+      if (!hasActiveTransactions) {
+        return { show: true, text: '+ Issue Book' };
+      }
+      // Student with active books
+      if (hasActiveTransactions) {
+        return { show: true, text: '+ Issue Book' };
+      }
+    }
+    
+    return { show: false, text: '' };
+  };
+
+  const issueButton = getIssueButton();
+
   return (
     <ProtectedRoute>
       <div>
         <div className="flex justify-between items-center mb-6">
-          <button
-            onClick={openIssueModal}
-            className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 shadow-md transition"
-          >
-            + Issue Book
-          </button>
+          {issueButton.show && (
+            <button
+              onClick={openIssueModal}
+              className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 shadow-md transition"
+            >
+              {issueButton.text}
+            </button>
+          )}
         </div>
 
         {loading && transactions.length === 0 ? (
@@ -152,12 +188,14 @@ export default function TransactionsPage() {
             {transactions.length === 0 ? (
               <div className="text-center py-12">
                 <p className="text-gray-600 text-lg">No transactions found</p>
-                <button
-                  onClick={openIssueModal}
-                  className="mt-4 bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700"
-                >
-                  Issue Your First Book
-                </button>
+                {issueButton.show && (
+                  <button
+                    onClick={openIssueModal}
+                    className="mt-4 bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700"
+                  >
+                    {issueButton.text}
+                  </button>
+                )}
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -232,7 +270,7 @@ export default function TransactionsPage() {
               {books.length === 0 ? (
                 <div className="text-center py-4">
                   <p className="text-gray-600 mb-4">No available books.</p>
-                  <button 
+                  <button
                     onClick={() => setShowIssueModal(false)} 
                     className="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600"
                   >

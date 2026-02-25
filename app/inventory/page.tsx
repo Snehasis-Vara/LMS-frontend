@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useAuth } from '@/context/AuthContext';
+import { useRouter } from 'next/navigation';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import api from '@/lib/api';
 import { ConfirmActionButton } from '@/components/ConfirmActionButton';
@@ -15,22 +17,30 @@ interface BookStats {
 }
 
 export default function InventoryPage() {
+  const { user } = useAuth();
+  const router = useRouter();
   const [books, setBooks] = useState<BookStats[]>([]);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (user && user.role !== 'ADMIN' && user.role !== 'LIBRARIAN') {
+      router.push('/dashboard');
+    }
+  }, [user, router]);
 
   const fetchData = async () => {
     try {
       setLoading(true);
       const response = await api.get('/books');
       
-      // Fetch stats for each book
-      const statsPromises = response.data.map((book: any) =>
+      const statsPromises = response.data.data.map((book: any) =>
         api.get(`/books/${book.id}/stats`)
       );
       const statsResults = await Promise.all(statsPromises);
       setBooks(statsResults.map(r => r.data));
-    } catch (error) {
-      alert('Failed to load inventory');
+    } catch (error: any) {
+      console.error('Failed to load inventory:', error);
+      alert(error.response?.data?.message || 'Failed to load inventory');
     } finally {
       setLoading(false);
     }
@@ -40,26 +50,28 @@ export default function InventoryPage() {
     fetchData();
   }, []);
 
-  const handleAddCopies = async (bookId: string, bookTitle: string, count: number) => {
+  const handleAddCopies = async (bookId: string, count: number) => {
     try {
       setLoading(true);
-      await api.post(`/books/${bookId}/add-copies`, { count });
+      const response = await api.post(`/books/${bookId}/add-copies`, { count });
       await fetchData();
-      alert(`${count} copies added successfully!`);
+      alert(response.data.message || `${count} copies added successfully!`);
     } catch (error: any) {
+      console.error('Add copies error:', error);
       alert(error.response?.data?.message || 'Failed to add copies');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleRemoveCopies = async (bookId: string, bookTitle: string, count: number) => {
+  const handleRemoveCopies = async (bookId: string, count: number) => {
     try {
       setLoading(true);
-      await api.post(`/books/${bookId}/remove-copies`, { count });
+      const response = await api.post(`/books/${bookId}/remove-copies`, { count });
       await fetchData();
-      alert(`${count} copies removed successfully!`);
+      alert(response.data.message || `${count} copies removed successfully!`);
     } catch (error: any) {
+      console.error('Remove copies error:', error);
       alert(error.response?.data?.message || 'Failed to remove copies');
     } finally {
       setLoading(false);
@@ -69,7 +81,7 @@ export default function InventoryPage() {
   const promptAndAdd = (bookId: string, bookTitle: string) => {
     const count = prompt(`How many copies of "${bookTitle}" to add?`, '1');
     if (count && parseInt(count) > 0) {
-      handleAddCopies(bookId, bookTitle, parseInt(count));
+      handleAddCopies(bookId, parseInt(count));
     }
   };
 
@@ -80,9 +92,17 @@ export default function InventoryPage() {
     }
     const count = prompt(`How many copies of "${bookTitle}" to remove? (Max: ${availableCopies})`, '1');
     if (count && parseInt(count) > 0) {
-      handleRemoveCopies(bookId, bookTitle, parseInt(count));
+      if (parseInt(count) > availableCopies) {
+        alert(`Cannot remove ${count} copies. Only ${availableCopies} available.`);
+        return;
+      }
+      handleRemoveCopies(bookId, parseInt(count));
     }
   };
+
+  if (!user || (user.role !== 'ADMIN' && user.role !== 'LIBRARIAN')) {
+    return null;
+  }
 
   return (
     <ProtectedRoute>
