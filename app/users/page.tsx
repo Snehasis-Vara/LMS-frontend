@@ -21,10 +21,12 @@ export default function UsersPage() {
       ]);
       setUsers(usersResponse.data);
       
-      // Count transactions per user
+      // Count only active transactions (ISSUED or OVERDUE) per user
       const transactionCounts: Record<string, number> = {};
-      transactionsResponse.data.forEach((transaction: { userId: string }) => {
-        transactionCounts[transaction.userId] = (transactionCounts[transaction.userId] || 0) + 1;
+      transactionsResponse.data.forEach((transaction: { userId: string; status: string }) => {
+        if (transaction.status === 'ISSUED' || transaction.status === 'OVERDUE') {
+          transactionCounts[transaction.userId] = (transactionCounts[transaction.userId] || 0) + 1;
+        }
       });
       setUserTransactions(transactionCounts);
       

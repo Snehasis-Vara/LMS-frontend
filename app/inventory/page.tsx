@@ -31,7 +31,7 @@ export default function InventoryPage() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/books');
+      const response = await api.get('/books?limit=1000');
       
       const statsPromises = response.data.data.map((book: any) =>
         api.get(`/books/${book.id}/stats`)

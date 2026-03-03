@@ -96,7 +96,6 @@ export default function BooksPage() {
     }
   };
 
-  // Group books by title and count
   const bookGroups = books.reduce((acc, book) => {
     const key = book.title.toLowerCase();
     if (!acc[key]) {
@@ -150,7 +149,6 @@ export default function BooksPage() {
           className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg mb-6 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 placeholder-gray-600"
         />
         
-        {/* Scroll loading indicator */}
         {loading && books.length > 0 && (
           <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-white px-4 py-2 rounded-lg shadow-lg z-50">
             <div className="flex items-center">
@@ -300,7 +298,6 @@ export default function BooksPage() {
           </div>
         )}
         
-        {/* Pagination Controls */}
         {pagination.total > 3 && (
           <div className="flex justify-center items-center gap-4 mt-8 bg-white p-4 rounded-lg shadow">
             <button
